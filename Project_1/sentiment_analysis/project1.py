@@ -219,8 +219,15 @@ def pegasos_single_step_update(
     real valued number with the value of theta_0 after the current updated has
     completed.
     """
-    # Your code here
-    raise NotImplementedError
+    ch = float(label*(current_theta.dot(feature_vector) + current_theta_0))
+    
+    if ch <= 1.0:
+        current_theta = (1-eta*L)*current_theta + eta*label*feature_vector
+        current_theta_0 = current_theta_0 + eta*label
+    else:
+        current_theta = (1-eta*L)*current_theta
+        
+    return (current_theta, current_theta_0)
 
 
 def pegasos(feature_matrix, labels, T, L):
@@ -252,8 +259,23 @@ def pegasos(feature_matrix, labels, T, L):
     number with the value of the theta_0, the offset classification
     parameter, found after T iterations through the feature matrix.
     """
-    # Your code here
-    raise NotImplementedError
+    # Counter
+    c = 1
+    
+    # Initialize theta and theta0
+    current_theta = np.zeros(feature_matrix.shape[1])
+    current_theta_0 = 0.0
+    
+    for t in range(T):
+        for i in get_order(feature_matrix.shape[0]):
+            eta_t = 1/np.sqrt(c)  # Update eta every iteration
+            c += 1 # Update counter
+            
+            # Run pegasos algorithm to get theta and theta0
+            current_theta, current_theta_0 = pegasos_single_step_update(feature_matrix[i,:], \
+             labels[i], L, eta_t, current_theta, current_theta_0)
+            
+    return (current_theta, current_theta_0)
 
 # Part II
 
@@ -275,8 +297,20 @@ def classify(feature_matrix, theta, theta_0):
     given theta and theta_0. If a prediction is GREATER THAN zero, it should
     be considered a positive classification.
     """
-    # Your code here
-    raise NotImplementedError
+    [n,d] = np.shape(feature_matrix)
+    # has to be np.array 
+    # each time append in a 1D array in row (n,) not 2D array in row (1,n)
+    # each sample got a classifying judgement {-1,1}
+    judge = np.array([]) 
+    
+    for i in range(n):
+        fun = np.dot(feature_matrix[i], theta) + theta_0
+        if fun > 0:
+            judge = np.append(judge, 1)
+        else:
+            judge = np.append(judge, -1)
+    # convert float into int array 
+    return judge.astype(int)
 
 
 def classifier_accuracy(
@@ -311,8 +345,19 @@ def classifier_accuracy(
     trained classifier on the training data and the second element is the
     accuracy of the trained classifier on the validation data.
     """
-    # Your code here
-    raise NotImplementedError
+    # Train the algorithm to get theta, theta0
+    theta, theta_0 = classifier(train_feature_matrix, train_labels, **kwargs)
+    
+    # Use these parameters to get predictions for training and validation sets
+    pred_train = classify(train_feature_matrix, theta, theta_0)
+    pred_val = classify(val_feature_matrix, theta, theta_0)
+    
+    # Calculate classification accuracy by comparing predictions with labels
+    train_accuracy = accuracy(pred_train, train_labels)
+    val_accuracy = accuracy(pred_val, val_labels)
+    
+    return (train_accuracy, val_accuracy)
+
 
 
 def extract_words(input_string):
@@ -335,12 +380,16 @@ def bag_of_words(texts):
 
     Feel free to change this code as guided by Problem 9
     """
-    # Your code here
+    # Read stopwords.txt and save words from this file
+    with open("stopwords.txt",'r',encoding='utf8') as stoptext:
+        stop_words = stoptext.read()
+        stop_words = stop_words.replace("\n"," ").split()
+        
     dictionary = {} # maps word to unique index
     for text in texts:
         word_list = extract_words(text)
         for word in word_list:
-            if word not in dictionary:
+            if word not in dictionary and word not in stop_words:
                 dictionary[word] = len(dictionary)
     return dictionary
 
@@ -355,8 +404,6 @@ def extract_bow_feature_vectors(reviews, dictionary):
 
     Feel free to change this code as guided by Problem 9
     """
-    # Your code here
-
     num_reviews = len(reviews)
     feature_matrix = np.zeros([num_reviews, len(dictionary)])
 
@@ -364,7 +411,7 @@ def extract_bow_feature_vectors(reviews, dictionary):
         word_list = extract_words(text)
         for word in word_list:
             if word in dictionary:
-                feature_matrix[i, dictionary[word]] = 1
+                feature_matrix[i, dictionary[word]] += 1    # Changed binary update to counts 
     return feature_matrix
 
 
